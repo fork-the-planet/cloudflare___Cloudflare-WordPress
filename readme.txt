@@ -99,6 +99,12 @@ Yes, Cloudflare works with, and helps speed up your site even more, if you have 
 
 == Changelog ==
 
+= 4.1x.y - YYYY/MM/DD =
+
+*Changed*
+
+* Replace FQCN type hints with imported aliases for LoggerInterface.
+
 = 4.14.2 - 2025-12-22 =
 
 *Fixed*
