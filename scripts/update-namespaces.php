@@ -26,11 +26,21 @@ $replacements = [
 	'use Symfony\\Polyfill\\' => 'use ' . $prefix . '\\Symfony\\Polyfill\\',
 ];
 
+// FQCN replacements (backslash-prefixed references in code)
+$fqcnReplacements = [
+	'\\Psr\\Log\\' => '\\' . $prefix . '\\Psr\\Log\\',
+	'\\CloudFlare\\' => '\\' . $prefix . '\\CloudFlare\\',
+	'\\Symfony\\Polyfill\\' => '\\' . $prefix . '\\Symfony\\Polyfill\\',
+];
+
+// Combine all replacements
+$allReplacements = array_merge( $replacements, $fqcnReplacements );
+
 // Update cloudflare.loader.php
 $loaderFile = $buildDir . '/cloudflare.loader.php';
 if ( file_exists( $loaderFile ) ) {
 	$content = file_get_contents( $loaderFile );
-	$content = str_replace( array_keys( $replacements ), array_values( $replacements ), $content );
+	$content = str_replace( array_keys( $allReplacements ), array_values( $allReplacements ), $content );
 	file_put_contents( $loaderFile, $content );
 }
 
@@ -44,7 +54,7 @@ if ( is_dir( $srcDir ) ) {
 	foreach ( $iterator as $file ) {
 		if ( $file->getExtension() === 'php' ) {
 			$content = file_get_contents( $file->getPathname() );
-			$newContent = str_replace( array_keys( $replacements ), array_values( $replacements ), $content );
+			$newContent = str_replace( array_keys( $allReplacements ), array_values( $allReplacements ), $content );
 			if ( $content !== $newContent ) {
 				file_put_contents( $file->getPathname(), $newContent );
 			}
