@@ -76,7 +76,7 @@ php scripts/update-namespaces.php "${OUTPUT_DIR}"
 
 # Remove unsupported PHP 8 symfony/polyfill return types (for PHP 7.4 compatibility)
 echo "📝 Removing PHP 8 return types from symfony polyfills..."
-find "${OUTPUT_DIR}/vendor/symfony" -name "bootstrap80.php" -exec sed -i '' 's/: string|false/ /g' {} \;
+php scripts/fix-polyfill-return-types.php "${OUTPUT_DIR}/vendor"
 
 # Clean up intermediate build artifacts
 echo "🧹 Cleaning up intermediate build artifacts..."
