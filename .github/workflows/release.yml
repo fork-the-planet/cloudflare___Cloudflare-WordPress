@@ -12,20 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Setup PHP
-      uses: shivammathur/setup-php@v2
-      with:
-        php-version: '8.4'
-        extensions: mbstring, intl
-        tools: composer:v2
-
-    - name: Install PHP-Scoper
-      run: composer global require humbug/php-scoper:^0.18 --prefer-dist --no-progress
+      uses: actions/checkout@v4
 
     - name: Build plugin
-      run: composer build
+      uses: ./.github/actions/build-plugin
 
     - name: Replace source with built plugin
       run: |
