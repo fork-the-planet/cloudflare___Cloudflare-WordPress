@@ -56,6 +56,114 @@ class ClientTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals($expectedRequestHeaders[Client::CONTENT_TYPE_KEY], $actualRequestHeaders[Client::CONTENT_TYPE_KEY]);
     }
 
+    public function testBeforeSendUsesGlobalKeyHeadersForCfkPrefix()
+    {
+        // New-format Global API Key: "cfk_" + 40 chars + checksum.
+        // nosemgrep: generic.secrets.security.detected-generic-api-key.detected-generic-api-key
+        $apiKey = 'cfk_' . str_repeat('a', 40) . 'X1y2';
+        $email = 'test@email.com';
+
+        $this->mockDataStore->method('getClientV4APIKey')->willReturn($apiKey);
+        $this->mockDataStore->method('getCloudFlareEmail')->willReturn($email);
+
+        $request = new \Cloudflare\APO\API\Request(null, null, null, null);
+        $beforeSendRequest = $this->mockClientAPI->beforeSend($request);
+
+        $headers = $beforeSendRequest->getHeaders();
+
+        $this->assertSame($apiKey, $headers[Client::X_AUTH_KEY]);
+        $this->assertSame($email, $headers[Client::X_AUTH_EMAIL]);
+        $this->assertArrayNotHasKey(Client::AUTHORIZATION, $headers);
+    }
+
+    public function testBeforeSendUsesBearerAuthForApiToken()
+    {
+        // Pre-2026 API Token format: 40-char alphanumeric (mixed case).
+        // nosemgrep: generic.secrets.security.detected-generic-api-key.detected-generic-api-key
+        $apiKey = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMN';
+        $email = 'test@email.com';
+
+        $this->mockDataStore->method('getClientV4APIKey')->willReturn($apiKey);
+        $this->mockDataStore->method('getCloudFlareEmail')->willReturn($email);
+
+        $request = new \Cloudflare\APO\API\Request(null, null, null, null);
+        $beforeSendRequest = $this->mockClientAPI->beforeSend($request);
+
+        $headers = $beforeSendRequest->getHeaders();
+
+        $this->assertSame("Bearer {$apiKey}", $headers[Client::AUTHORIZATION]);
+        $this->assertArrayNotHasKey(Client::X_AUTH_KEY, $headers);
+        $this->assertArrayNotHasKey(Client::X_AUTH_EMAIL, $headers);
+    }
+
+    /**
+     * @dataProvider providerIsGlobalApiKey
+     */
+    public function testIsGlobalApiKey($key, $expected, $description)
+    {
+        $this->assertSame(
+            $expected,
+            Client::isGlobalApiKey($key),
+            $description
+        );
+    }
+
+    public function providerIsGlobalApiKey()
+    {
+        return array(
+            // New scannable Global API Key format.
+            'new cfk_ Global API Key' => array(
+                'cfk_' . str_repeat('a', 40) . 'X1y2',
+                true,
+                'cfk_-prefixed Global API Key should be detected as Global API Key',
+            ),
+            // New scannable API Token formats.
+            'new cfut_ User API Token' => array(
+                'cfut_' . str_repeat('a', 40) . 'X1y2',
+                false,
+                'cfut_-prefixed User API Token should be sent as Bearer',
+            ),
+            'new cfat_ Account API Token' => array(
+                'cfat_' . str_repeat('b', 40) . 'X1y2',
+                false,
+                'cfat_-prefixed Account API Token should be sent as Bearer',
+            ),
+            // Pre-2026 Global API Key format: 37-45 lowercase hex characters.
+            'pre-2026 Global API Key (37 chars hex)' => array(
+                str_repeat('a', 37),
+                true,
+                '37-char lowercase hex matches legacy Global API Key format',
+            ),
+            'pre-2026 Global API Key (40 chars hex)' => array(
+                str_repeat('a', 40),
+                true,
+                '40-char lowercase hex matches legacy Global API Key format',
+            ),
+            'pre-2026 Global API Key (45 chars hex)' => array(
+                str_repeat('a', 45),
+                true,
+                '45-char lowercase hex matches legacy Global API Key format',
+            ),
+            'lowercase hex outside 37-45 range' => array(
+                str_repeat('a', 48),
+                false,
+                'Hex strings outside the 37-45 range are not Global API Keys',
+            ),
+            // Pre-2026 API Token format: 40-char alphanumeric, mixed case.
+            'pre-2026 API Token (40 char mixed case)' => array(
+                'abcdefghijklmnopqrstuvwxyz0123456789ABCD',
+                false,
+                '40-char alphanumeric (mixed case) is an API Token',
+            ),
+            // Defensive cases.
+            'empty string' => array(
+                '',
+                false,
+                'Empty credential should not be treated as Global API Key',
+            ),
+        );
+    }
+
     public function testClientApiErrorReturnsValidStructure()
     {
         $expectedErrorResponse = array(
