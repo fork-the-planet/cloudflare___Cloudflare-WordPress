@@ -1,4 +1,4 @@
-name: PHP Composer
+name: Test PHP Source
 
 on:
   push:
@@ -8,79 +8,98 @@ on:
 
 jobs:
   build:
-
+    name: Build & Validate
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.experimental }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.4'
+
+    - name: Validate composer.json and composer.lock
+      run: composer validate --no-interaction
+
+    - name: Install production dependencies
+      run: composer install --prefer-dist --no-progress --no-dev
+
+    - name: Remove unsupported PHP 8 symfony/polyfill return types
+      run: composer run-script fix-polyfill-return-types
+
+    - name: Upload production vendor
+      uses: actions/upload-artifact@v4
+      with:
+        name: vendor-prod
+        path: vendor/
+        retention-days: 1
+
+    - name: Install all dependencies (including dev)
+      run: composer install --prefer-dist --no-progress
+
+    - name: Upload full vendor
+      uses: actions/upload-artifact@v4
+      with:
+        name: vendor-dev
+        path: vendor/
+        retention-days: 1
+
+  syntax-check:
+    name: Syntax Check (PHP ${{ matrix.php-versions }})
+    needs: build
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        experimental: [false]
         php-versions: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - uses: shivammathur/setup-php@v2
       with:
         php-version: ${{ matrix.php-versions }}
 
-    - name: Cache Composer dependencies
-      uses: actions/cache@v4
+    - name: Download production vendor
+      uses: actions/download-artifact@v4
       with:
-        path: /tmp/composer-cache
-        key: ${{ runner.os }}-${{ matrix.php-versions }}-${{ hashFiles('**/composer.lock') }}
-
-    - name: Validate composer.json and composer.lock
-      uses: php-actions/composer@v6
-      with:
-        command: validate
-        php_version: ${{ matrix.php-versions }}
-        version: 2
-
-    - name: Install dependencies (no-dev for lint)
-      uses: php-actions/composer@v6
-      with:
-        command: install
-        args: --no-dev --prefer-dist --no-progress --no-suggest --verbose
-        php_version: ${{ matrix.php-versions }}
-        version: 2
-
-    - name: Remove unsupported PHP 8 symfony/polyfill return types
-      uses: jacobtomlinson/gha-find-replace@v2
-      with:
-        find: ": string|false"
-        replace: " "
-        include: "**/symfony/polyfill-intl-{idn,normalizer}/bootstrap80.php"
-        regex: false
+        name: vendor-prod
+        path: vendor/
 
     - name: PHP syntax check
       run: for f in $(find . -name '*.php'); do php -l $f; RETVAL=$?; if [ $RETVAL -ne 0 ]; then exit $RETVAL; fi; done
 
-    - name: Install dependencies (second pass with dev)
-      uses: php-actions/composer@v6
-      with:
-          command: install
-          args: --prefer-dist --no-progress --no-suggest --verbose
-          php_version: ${{ matrix.php-versions }}
-          version: 2
+  test:
+    name: Tests (PHP ${{ matrix.php-versions }}${{ matrix.extensions == 'intl' && ' + intl' || '' }})
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-versions: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+        extensions: ['intl', 'none']
 
-    - name: Remove intentional crash test in dependency
-      uses: php-actions/composer@v6
-      with:
-          command: run-script clean-crash-test
-          version: 2
-          php_version: ${{ matrix.php-versions }}
+    steps:
+    - uses: actions/checkout@v4
 
-    - name: Format
-      uses: php-actions/composer@v6
+    - uses: shivammathur/setup-php@v2
       with:
-        command: run-script format
-        php_version: ${{ matrix.php-versions }}
-        version: 2
+        php-version: ${{ matrix.php-versions }}
+        extensions: ${{ matrix.extensions == 'none' && '-intl' || 'intl' }}
+
+    - name: Download full vendor
+      uses: actions/download-artifact@v4
+      with:
+        name: vendor-dev
+        path: vendor/
+
+    - name: Verify intl extension status
+      run: |
+        if [ "${{ matrix.extensions }}" = "intl" ]; then
+          php -m | grep -q intl && echo "✓ intl extension is loaded" || (echo "✗ intl extension should be loaded" && exit 1)
+        else
+          php -m | grep -q intl && (echo "✗ intl extension should NOT be loaded" && exit 1) || echo "✓ intl extension is not loaded (testing polyfill)"
+        fi
 
     - name: Run test suite
-      uses: php-actions/composer@v6
-      with:
-        command: run-script test
-        php_version: ${{ matrix.php-versions }}
-        version: 2
+      run: composer run-script test

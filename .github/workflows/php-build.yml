@@ -1,0 +1,101 @@
+name: Test Build Artifact
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build:
+    name: Build artifact
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build plugin
+      uses: ./.github/actions/build-plugin
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifact
+        path: build/
+        retention-days: 1
+
+    - name: Install dev dependencies
+      run: composer install --prefer-dist --no-progress
+
+    - name: Upload dev vendor
+      uses: actions/upload-artifact@v4
+      with:
+        name: vendor-dev
+        path: vendor/
+        retention-days: 1
+
+  syntax-check:
+    name: Syntax Check (build artifact, PHP ${{ matrix.php-versions }})
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-versions: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+
+    steps:
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-versions }}
+
+    - name: Download build artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: build-artifact
+        path: build/
+
+    - name: PHP syntax check
+      run: for f in $(find build/ -name '*.php'); do php -l $f; RETVAL=$?; if [ $RETVAL -ne 0 ]; then exit $RETVAL; fi; done
+
+  test-build:
+    name: Test build (PHP ${{ matrix.php-versions }}${{ matrix.extensions == 'intl' && ' + intl' || '' }})
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-versions: ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4']
+        extensions: ['intl', 'none']
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ matrix.php-versions }}
+        extensions: ${{ matrix.extensions == 'none' && '-intl' || 'intl' }}
+
+    - name: Download build artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: build-artifact
+        path: build/
+
+    - name: Download dev vendor
+      uses: actions/download-artifact@v4
+      with:
+        name: vendor-dev
+        path: vendor/
+
+    - name: Verify intl extension status
+      run: |
+        if [ "${{ matrix.extensions }}" = "intl" ]; then
+          php -m | grep -q intl && echo "✓ intl extension is loaded" || (echo "✗ intl extension should be loaded" && exit 1)
+        else
+          php -m | grep -q intl && (echo "✗ intl extension should NOT be loaded" && exit 1) || echo "✓ intl extension is not loaded (testing polyfill)"
+        fi
+
+    - name: Run tests against build artifact
+      run: composer run-script test-build

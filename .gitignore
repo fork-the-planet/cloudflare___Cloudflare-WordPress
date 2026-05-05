@@ -3,3 +3,8 @@ vendor/
 xdebug/*
 .phpunit.result.cache
 .idea
+.secrets
+.actrc
+.github/act/
+# PHP-Scoper build output
+build/

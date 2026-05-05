@@ -1,9 +1,10 @@
 <?php
 
-namespace CF\API;
+namespace Cloudflare\APO\API;
 
-use CF\Integration\DataStoreInterface;
-use CF\Integration\DefaultIntegration;
+use Cloudflare\APO\Integration\DataStoreInterface;
+use Cloudflare\APO\Integration\DefaultIntegration;
+use Psr\Log\LoggerInterface;
 
 abstract class AbstractPluginActions
 {
@@ -64,7 +65,7 @@ abstract class AbstractPluginActions
         $this->dataStore = $dataStore;
     }
 
-    public function setLogger(\Psr\Log\LoggerInterface $logger)
+    public function setLogger(LoggerInterface $logger)
     {
         $this->logger = $logger;
     }
@@ -91,7 +92,7 @@ abstract class AbstractPluginActions
 
         $params = array();
         // Only Wordpress gives us access to the zone name, so check for it here
-        if ($this->integrationAPI instanceof \CF\WordPress\WordPressAPI) {
+        if ($this->integrationAPI instanceof \Cloudflare\APO\WordPress\WordPressAPI) {
             $params =  array('name' => $this->integrationAPI->getOriginalDomain());
         }
 

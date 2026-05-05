@@ -1,8 +1,11 @@
 {
   "autoload": {
     "psr-4": {
-      "CF\\": "src/"
-    }
+      "Cloudflare\\APO\\": "src/"
+    },
+    "classmap": [
+      "deprecated/"
+    ]
   },
   "description": "A Cloudflare plugin for WordPress",
   "license": "BSD-3-Clause",
@@ -17,7 +20,7 @@
     "symfony/yaml": "^5.4",
     "johnkary/phpunit-speedtrap": "*",
     "php-mock/php-mock-phpunit": "*",
-    "phpunit/phpunit": "*",
+    "phpunit/phpunit": "^9.0",
     "squizlabs/php_codesniffer": "*",
     "phpcompatibility/php-compatibility": "*",
     "dealerdirect/phpcodesniffer-composer-installer": "*",
@@ -26,13 +29,17 @@
   "scripts": {
     "format": "php vendor/bin/phpcs -d date.timezone=UTC --standard=phpcs.xml",
     "test": "php vendor/bin/phpunit",
+    "test-build": "php vendor/bin/phpunit -c phpunit.build.xml",
     "clean-crash-test": "rm -f vendor/phpunit/php-code-coverage/tests/_files/Crash.php",
-    "remove-php-8-symfony-polyfill-bootstraps": "rm -f vendor/symfony/polyfill-ctype/bootstrap80.php vendor/symfony/polyfill-intl-idn/bootstrap80.php vendor/symfony/polyfill-intl-normalizer/bootstrap80.php"
+    "fix-polyfill-return-types": "php scripts/fix-polyfill-return-types.php",
+    "remove-php-8-symfony-polyfill-bootstraps": "rm -f vendor/symfony/polyfill-ctype/bootstrap80.php vendor/symfony/polyfill-intl-idn/bootstrap80.php vendor/symfony/polyfill-intl-normalizer/bootstrap80.php",
+    "prefix-deps": "bash scripts/prefix-dependencies.sh",
+    "build": "bash scripts/build.sh"
   },
   "_comment": [
     "php-compatibility-install comes from https://github.com/wimg/PHPCompatibility/issues/102#issuecomment-255778195"
   ],
-  "version": "4.13.0",
+  "version": "4.14.2",
   "config": {
     "platform": {
       "php": "7.4"

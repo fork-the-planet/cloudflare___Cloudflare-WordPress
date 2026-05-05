@@ -1,6 +1,6 @@
 <?php
 
-namespace CF\Integration;
+namespace Cloudflare\APO\Integration;
 
 use Psr\Log\LoggerInterface;
 
@@ -15,7 +15,7 @@ class DefaultIntegration implements IntegrationInterface
      * @param ConfigInterface                          $config
      * @param IntegrationAPIInterface                  $integrationAPI
      * @param DataStoreInterface                       $dataStore
-     * @param LoggerInterface|\Psr\Log\LoggerInterface $logger
+     * @param LoggerInterface                          $logger
      */
     public function __construct(ConfigInterface $config, IntegrationAPIInterface $integrationAPI, DataStoreInterface $dataStore, LoggerInterface $logger)
     {

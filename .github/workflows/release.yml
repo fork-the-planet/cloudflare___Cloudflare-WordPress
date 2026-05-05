@@ -2,35 +2,32 @@ name: Release plugin
 on:
   release:
     types: [published]
+
+permissions:
+  contents: write
+
 jobs:
   release:
     name: New release
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
-    - name: Build
-      uses: php-actions/composer@v6
-      with:
-        command: install
-        dev: no
-        version: 2
-        php_version: 7.4
+    - name: Build plugin
+      uses: ./.github/actions/build-plugin
 
-    - name: Remove unsupported PHP 8 symfony/polyfill return types
-      uses: jacobtomlinson/gha-find-replace@v2
-      with:
-        find: ": string|false"
-        replace: " "
-        include: "**/symfony/polyfill-intl-{idn,normalizer}/bootstrap80.php"
-        regex: false
+    - name: Replace source with built plugin
+      run: |
+        rm -rf src vendor
+        cp -r build/cloudflare/* .
 
     - name: WordPress Plugin Deploy
       id: deploy
       uses: 10up/action-wordpress-plugin-deploy@stable
       with:
         generate-zip: true
+        dry-run: false
       env:
         SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
         SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}

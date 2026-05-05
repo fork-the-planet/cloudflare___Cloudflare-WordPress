@@ -1,0 +1,20 @@
+name: Build Plugin
+description: Setup PHP, install PHP-Scoper, and build the Cloudflare WordPress plugin
+
+runs:
+  using: composite
+  steps:
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.4'
+        extensions: mbstring, intl
+        tools: composer:v2
+
+    - name: Install PHP-Scoper
+      shell: bash
+      run: composer global require humbug/php-scoper:^0.18 --prefer-dist --no-progress
+
+    - name: Build plugin
+      shell: bash
+      run: composer build
