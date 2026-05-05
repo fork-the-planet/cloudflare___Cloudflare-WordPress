@@ -89,7 +89,7 @@ class PluginActions extends AbstractPluginActions
             throw new ZoneSettingFailException();
         }
 
-        $currentPlan = $details['result']['plan']['legacy_id'] ?? 'free';
+        $currentPlan = $details['result']['plan']['legacy_id'] ?? Plans::FREE_PLAN;
 
         // Define the recommended settings to apply
         $settings = array(
